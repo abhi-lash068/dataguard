@@ -1,0 +1,30 @@
+policies:
+  - subject: payment-service
+    target: payments-db
+    operations: [READ, WRITE]
+    action: ALLOW
+
+  - subject: payment-service
+    target: patient-db
+    operations: [READ, WRITE]
+    action: DENY
+
+  - subject: health-service
+    target: patient-db
+    operations: [READ, WRITE]
+    action: ALLOW
+
+  - subject: health-service
+    target: payments-db
+    operations: [READ, WRITE]
+    action: DENY
+
+  - subject: analytics-service
+    target: patient-db
+    operations: [READ, WRITE]
+    action: DENY
+
+  - subject: analytics-service
+    target: metrics-db
+    operations: [READ]
+    action: ALLOW

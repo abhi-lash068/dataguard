@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataGuard — Live Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3250; --text: #e8eaf6; --muted: #7986cb;
+    --green: #00e676; --red: #ff5252; --yellow: #ffd740;
+    --accent: #7c4dff; --teal: #1de9b6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-size: 20px; font-weight: 700; color: var(--teal); display: flex; align-items: center; gap: 10px; }
+  .logo span { font-size: 13px; color: var(--muted); font-weight: 400; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .stats-row { display: flex; gap: 12px; padding: 20px 24px; }
+  .stat { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+  .stat-val { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+  .stat-label { font-size: 12px; color: var(--muted); }
+  .s-total { color: var(--text); }
+  .s-allow { color: var(--green); }
+  .s-deny  { color: var(--red); }
+  .s-viol  { color: var(--yellow); }
+
+  .main { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 0 24px 24px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .panel-title { padding: 14px 16px; font-size: 13px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px; }
+  .btn { padding: 12px 10px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .btn .icon { font-size: 20px; }
+  .btn-allow { background: #0d2818; color: var(--green); border: 1px solid #1a4a2a; }
+  .btn-allow:hover { background: #143520; transform: translateY(-1px); }
+  .btn-deny  { background: #2a0d0d; color: var(--red); border: 1px solid #4a1a1a; }
+  .btn-deny:hover  { background: #351515; transform: translateY(-1px); }
+  .btn-info  { background: #1a1535; color: #7c4dff; border: 1px solid #2e2560; }
+  .btn-info:hover  { background: #221c45; transform: translateY(-1px); }
+
+  .divider { height: 1px; background: var(--border); margin: 0 14px; }
+  .section-label { padding: 10px 14px 4px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .policy-list { padding: 8px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+  .policy-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; background: var(--surface2); font-size: 11px; }
+  .policy-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; min-width: 44px; text-align: center; }
+  .allow-badge { background: #0d2818; color: var(--green); }
+  .deny-badge  { background: #2a0d0d; color: var(--red); }
+  .policy-text { color: #b0bec5; flex: 1; }
+
+  #log-container { height: 420px; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 5px; }
+  .log-entry { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--surface2); animation: slideIn 0.3s ease; border-left: 3px solid transparent; }
+  .log-entry.allow { border-left-color: var(--green); }
+  .log-entry.deny  { border-left-color: var(--red); }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+  .log-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .log-body { flex: 1; }
+  .log-main { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+  .log-main b { color: var(--teal); }
+  .log-sub { font-size: 10px; color: var(--muted); }
+  .log-result { font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .log-result.allow { color: var(--green); }
+  .log-result.deny  { color: var(--red); }
+
+  .alert-banner { display: none; margin: 0 24px 16px; background: #2a0d0d; border: 1px solid #7b1a1a; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; animation: slideIn 0.3s ease; }
+  .alert-banner.show { display: flex; }
+  .alert-text { font-size: 13px; color: var(--red); font-weight: 500; }
+
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 20px; }
+  .empty .e-icon { font-size: 40px; margin-bottom: 10px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    🛡️ DataGuard
+    <span>Policy Enforcement Dashboard</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+    <div class="status-dot"></div> Guardian Active
+  </div>
+</header>
+
+<div class="stats-row">
+  <div class="stat"><div class="stat-val s-total" id="s-total">0</div><div class="stat-label">Total Intercepted</div></div>
+  <div class="stat"><div class="stat-val s-allow" id="s-allow">0</div><div class="stat-label">Allowed ✅</div></div>
+  <div class="stat"><div class="stat-val s-deny"  id="s-deny">0</div><div class="stat-label">Blocked 🚫</div></div>
+  <div class="stat"><div class="stat-val s-viol"  id="s-viol">0</div><div class="stat-label">Violations ⚠️</div></div>
+</div>
+
+<div id="alert-banner" class="alert-banner">
+  <span style="font-size:20px">🚨</span>
+  <div class="alert-text" id="alert-text">Policy violation detected!</div>
+</div>
+
+<div class="main">
+
+  <!-- Log Panel -->
+  <div class="panel">
+    <div class="panel-title">📋 Live Enforcement Log <span style="margin-left:auto;font-weight:400" id="log-count">0 events</span></div>
+    <div id="log-container">
+      <div class="empty"><div class="e-icon">🛡️</div>Guardian is watching...<br>Click a button to simulate a request!</div>
+    </div>
+  </div>
+
+  <!-- Control Panel -->
+  <div>
+    <div class="panel" style="margin-bottom:14px">
+      <div class="panel-title">🎮 Simulate Requests</div>
+      <div class="section-label">✅ Legal flows (should be ALLOWED)</div>
+      <div class="btn-grid">
+        <button class="btn btn-allow" onclick="sim('payment-service','payments-db','READ')">
+          <span class="icon">💳</span>Payment reads<br>Payments DB
+        </button>
+        <button class="btn btn-allow" onclick="sim('health-service','patient-db','READ')">
+          <span class="icon">🏥</span>Health reads<br>Patient DB
+        </button>
+        <button class="btn btn-allow" onclick="sim('health-service','patient-db','WRITE')">
+          <span class="icon">✍️</span>Health writes<br>Patient DB
+        </button>
+        <button class="btn btn-allow" onclick="sim('analytics-service','metrics-db','READ')">
+          <span class="icon">📊</span>Analytics reads<br>Metrics DB
+        </button>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">🚨 Attack simulations (should be BLOCKED)</div>
+      <div class="btn-grid">
+        <button class="btn btn-deny" onclick="sim('payment-service','patient-db','READ')">
+          <span class="icon">💀</span>Payment attacks<br>Patient DB
+        </button>
+        <button class="btn btn-deny" onclick="sim('payment-service','patient-db','WRITE')">
+          <span class="icon">☠️</span>Payment writes<br>Patient DB
+        </button>
+        <button class="btn btn-deny" onclick="sim('analytics-service','patient-db','READ')">
+          <span class="icon">🔓</span>Analytics attacks<br>Patient DB
+        </button>
+        <button class="btn btn-deny" onclick="sim('health-service','payments-db','READ')">
+          <span class="icon">⚡</span>Health attacks<br>Payments DB
+        </button>
+      </div>
+
+      <div class="divider"></div>
+      <div style="padding:10px 14px;display:flex;gap:8px">
+        <button class="btn btn-info" style="flex:1;flex-direction:row;justify-content:center" onclick="clearLog()">
+          🗑️ Clear Log
+        </button>
+        <button class="btn btn-info" style="flex:1;flex-direction:row;justify-content:center" onclick="autoDemo()">
+          ▶️ Auto Demo
+        </button>
+      </div>
+    </div>
+
+    <!-- Policy Panel -->
+    <div class="panel">
+      <div class="panel-title">📜 Active Policies</div>
+      <div class="policy-list" id="policy-list">
+        <div style="text-align:center;color:var(--muted);font-size:12px;padding:10px">Loading policies...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const GUARDIAN = "http://localhost:8080";
+let logCount = 0;
+let alertTimer;
+
+// ── Stats ──────────────────────────────────────────────────────
+function updateStats(stats) {
+  document.getElementById("s-total").textContent = stats.total;
+  document.getElementById("s-allow").textContent = stats.allowed;
+  document.getElementById("s-deny").textContent  = stats.denied;
+  document.getElementById("s-viol").textContent  = stats.violations;
+}
+
+// ── Show Alert ─────────────────────────────────────────────────
+function showAlert(msg) {
+  const b = document.getElementById("alert-banner");
+  document.getElementById("alert-text").textContent = "🚨 POLICY VIOLATION: " + msg;
+  b.classList.add("show");
+  clearTimeout(alertTimer);
+  alertTimer = setTimeout(() => b.classList.remove("show"), 4000);
+}
+
+// ── Add Log Entry ──────────────────────────────────────────────
+function addLog(subject, target, operation, result) {
+  const c = document.getElementById("log-container");
+  // Remove empty state
+  const empty = c.querySelector(".empty");
+  if (empty) empty.remove();
+
+  const isAllow = result === "ALLOW";
+  logCount++;
+  document.getElementById("log-count").textContent = logCount + " events";
+
+  const div = document.createElement("div");
+  div.className = "log-entry " + (isAllow ? "allow" : "deny");
+  div.innerHTML = `
+    <div class="log-icon">${isAllow ? "✅" : "🚫"}</div>
+    <div class="log-body">
+      <div class="log-main"><b>${subject}</b> → ${target} [${operation}]</div>
+      <div class="log-sub">${new Date().toLocaleTimeString()}</div>
+    </div>
+    <div class="log-result ${isAllow ? "allow" : "deny"}">${result}</div>
+  `;
+  c.insertBefore(div, c.firstChild);
+
+  if (!isAllow) showAlert(`${subject} tried to access ${target}`);
+}
+
+// ── Simulate Request ───────────────────────────────────────────
+async function sim(subject, target, operation) {
+  try {
+    const resp = await fetch(GUARDIAN + "/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, target, operation })
+    });
+    const data = await resp.json();
+    addLog(subject, target, operation, data.result);
+    // Refresh stats
+    const logs = await fetch(GUARDIAN + "/logs").then(r => r.json());
+    updateStats(logs.stats);
+  } catch(e) {
+    // Guardian not running — simulate locally
+    const allowed = [
+      "payment-service:payments-db", "health-service:patient-db", "analytics-service:metrics-db"
+    ];
+    const key = subject + ":" + target;
+    const result = allowed.some(k => key.startsWith(k)) ? "ALLOW" : "DENY";
+    addLog(subject, target, operation, result);
+  }
+}
+
+// ── Load Policies ──────────────────────────────────────────────
+async function loadPolicies() {
+  const policies = [
+    {subject:"payment-service", target:"payments-db", action:"ALLOW"},
+    {subject:"payment-service", target:"patient-db",  action:"DENY"},
+    {subject:"health-service",  target:"patient-db",  action:"ALLOW"},
+    {subject:"health-service",  target:"payments-db", action:"DENY"},
+    {subject:"analytics-service",target:"patient-db", action:"DENY"},
+    {subject:"analytics-service",target:"metrics-db", action:"ALLOW"},
+  ];
+  const c = document.getElementById("policy-list");
+  c.innerHTML = policies.map(p => `
+    <div class="policy-item">
+      <span class="policy-badge ${p.action === 'ALLOW' ? 'allow-badge' : 'deny-badge'}">${p.action}</span>
+      <span class="policy-text">${p.subject} → ${p.target}</span>
+    </div>
+  `).join("");
+}
+
+// ── Auto Demo ──────────────────────────────────────────────────
+const demoSequence = [
+  ["payment-service",  "payments-db", "READ"],
+  ["health-service",   "patient-db",  "READ"],
+  ["payment-service",  "patient-db",  "READ"],   // ATTACK
+  ["analytics-service","metrics-db",  "READ"],
+  ["payment-service",  "patient-db",  "WRITE"],  // ATTACK
+  ["health-service",   "patient-db",  "WRITE"],
+  ["analytics-service","patient-db",  "READ"],   // ATTACK
+  ["health-service",   "payments-db", "READ"],   // ATTACK
+];
+let demoIdx = 0;
+let demoTimer;
+
+function autoDemo() {
+  clearInterval(demoTimer);
+  demoIdx = 0;
+  demoTimer = setInterval(() => {
+    if (demoIdx >= demoSequence.length) { clearInterval(demoTimer); return; }
+    const [s,t,o] = demoSequence[demoIdx++];
+    sim(s,t,o);
+  }, 1200);
+}
+
+function clearLog() {
+  document.getElementById("log-container").innerHTML =
+    '<div class="empty"><div class="e-icon">🛡️</div>Log cleared — Guardian still watching!</div>';
+  logCount = 0;
+  document.getElementById("log-count").textContent = "0 events";
+}
+
+// Init
+loadPolicies();
+</script>
+</body>
+</html>
