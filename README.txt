@@ -30,7 +30,7 @@ STEP 3 — Open Dashboard:
   Open dashboard/index.html in Chrome browser
   (just double-click the file)
 
-STEP 4 — Demo to evaluator:
+STEP 4 — Demo 
   Click "Payment attacks Patient DB" → BLOCKED 🚫
   Click "Health reads Patient DB"    → ALLOWED ✅
   Click "Auto Demo"                  → full sequence!
